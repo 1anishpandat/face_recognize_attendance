@@ -1,0 +1,915 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Face Registration & Attendance System</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 20px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+            padding: 30px;
+            backdrop-filter: blur(10px);
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .header h1 {
+            color: #2c3e50;
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+            font-weight: 700;
+        }
+
+        .header p {
+            color: #7f8c8d;
+            font-size: 1.1rem;
+        }
+
+        .tabs {
+            display: flex;
+            margin-bottom: 30px;
+            border-bottom: 1px solid #ddd;
+        }
+
+        .tab {
+            padding: 15px 30px;
+            background: none;
+            border: none;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            color: #666;
+            border-bottom: 3px solid transparent;
+            transition: all 0.3s ease;
+        }
+
+        .tab.active {
+            color: #3498db;
+            border-bottom-color: #3498db;
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        .main-content {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+            margin-bottom: 30px;
+        }
+
+        .camera-section {
+            text-align: center;
+        }
+
+        .video-container {
+            position: relative;
+            border-radius: 15px;
+            overflow: hidden;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+            margin-bottom: 20px;
+        }
+
+        #video {
+            width: 100%;
+            height: 350px;
+            object-fit: cover;
+        }
+
+        #detectionOverlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            pointer-events: none;
+        }
+
+        .info-section {
+            background: #f8f9fa;
+            border-radius: 15px;
+            padding: 25px;
+            height: fit-content;
+        }
+
+        .info-section h3 {
+            color: #2c3e50;
+            margin-bottom: 20px;
+            font-size: 1.5rem;
+        }
+
+        .info-item {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 15px;
+            padding: 10px;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #2c3e50;
+        }
+
+        .form-group input, .form-group select {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            font-size: 16px;
+        }
+
+        .controls {
+            display: flex;
+            gap: 15px;
+            justify-content: center;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+
+        .btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #3498db, #2980b9);
+            color: white;
+        }
+
+        .btn-success {
+            background: linear-gradient(135deg, #2ecc71, #27ae60);
+            color: white;
+        }
+
+        .btn-warning {
+            background: linear-gradient(135deg, #f39c12, #e67e22);
+            color: white;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(52, 152, 219, 0.4);
+        }
+
+        .btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .status-message {
+            padding: 15px;
+            border-radius: 8px;
+            margin: 15px 0;
+            font-weight: 600;
+            text-align: center;
+        }
+
+        .status-success { background: #d4edda; color: #155724; }
+        .status-error { background: #f8d7da; color: #721c24; }
+        .status-info { background: #d1ecf1; color: #0c5460; }
+
+        .attendance-log {
+            margin-top: 20px;
+            background: white;
+            border-radius: 10px;
+            padding: 20px;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+
+        .attendance-entry {
+            padding: 10px;
+            border-bottom: 1px solid #eee;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .attendance-entry:last-child {
+            border-bottom: none;
+        }
+
+        .debug-section {
+            margin-top: 20px;
+            padding: 15px;
+            background: #343a40;
+            color: white;
+            border-radius: 10px;
+            font-family: monospace;
+            font-size: 12px;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+
+        @media (max-width: 768px) {
+            .main-content {
+                grid-template-columns: 1fr;
+            }
+            
+            .controls {
+                flex-direction: column;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Face Registration & Attendance System</h1>
+            <p>Register employees and mark attendance using face recognition</p>
+        </div>
+
+        <div class="tabs">
+            <button class="tab active" data-tab="registration">Employee Registration</button>
+            <button class="tab" data-tab="attendance">Mark Attendance</button>
+        </div>
+
+        <!-- Registration Tab -->
+        <div class="tab-content active" id="registration">
+            <div class="main-content">
+                <div class="camera-section">
+                    <div class="video-container">
+                        <video id="video" autoplay muted playsinline></video>
+                        <canvas id="detectionOverlay"></canvas>
+                    </div>
+                    
+                    <div class="controls">
+                        <button class="btn btn-primary" id="startCamera">Start Camera</button>
+                        <button class="btn btn-success" id="captureFace" disabled>Capture Face</button>
+                        <button class="btn btn-warning" id="registerEmployee" disabled>Register Employee</button>
+                    </div>
+                    
+                    <div id="statusMessage"></div>
+                </div>
+
+                <div class="info-section">
+                    <h3>Employee Information</h3>
+                    <div class="form-group">
+                        <label for="employeeId">Employee ID</label>
+                        <input type="text" id="employeeId" placeholder="Enter Employee ID" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="fullName">Full Name</label>
+                        <input type="text" id="fullName" placeholder="Enter Full Name" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="department">Department</label>
+                        <select id="department" required>
+                            <option value="">Select Department</option>
+                            <option value="IT">IT</option>
+                            <option value="HR">HR</option>
+                            <option value="Finance">Finance</option>
+                            <option value="Marketing">Marketing</option>
+                            <option value="Operations">Operations</option>
+                        </select>
+                    </div>
+                    
+                    <div class="info-item">
+                        <span>Face Captured:</span>
+                        <span id="faceCaptured">No</span>
+                    </div>
+                    <div class="info-item">
+                        <span>Face Quality:</span>
+                        <span id="faceQuality">-</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Attendance Tab -->
+        <div class="tab-content" id="attendance">
+            <div class="main-content">
+                <div class="camera-section">
+                    <div class="video-container">
+                        <video id="attendanceVideo" autoplay muted playsinline></video>
+                        <canvas id="attendanceOverlay"></canvas>
+                    </div>
+                    
+                    <div class="controls">
+                        <button class="btn btn-primary" id="startAttendanceCamera">Start Camera</button>
+                        <div class="info-item" style="margin: 10px 0; background: #e8f5e8; border-radius: 8px;">
+                            <span style="font-weight: bold; color: #2c5530;">Auto-Detection Active</span>
+                            <span style="color: #2c5530;">Attendance will be marked automatically when face is recognized</span>
+                        </div>
+                    </div>
+                    
+                    <div id="attendanceStatus"></div>
+                </div>
+
+                <div class="info-section">
+                    <h3>Attendance Information</h3>
+                    <div class="info-item">
+                        <span>Current Time:</span>
+                        <span id="currentTime">-</span>
+                    </div>
+                    <div class="info-item">
+                        <span>Recognized Employee:</span>
+                        <span id="recognizedEmployee">-</span>
+                    </div>
+                    <div class="info-item">
+                        <span>Recognition Confidence:</span>
+                        <span id="recognitionConfidence">-</span>
+                    </div>
+                    <div class="info-item">
+                        <span>Attendance Status:</span>
+                        <span id="attendanceStatusText">-</span>
+                    </div>
+                    
+                    <div class="attendance-log">
+                        <h4>Today's Attendance Log</h4>
+                        <div id="attendanceLogEntries"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="debug-section" id="debugLog">
+            <strong>Debug Log:</strong><br>
+        </div>
+    </div>
+
+    <script>
+        class FaceRegistrationAttendanceSystem {
+            constructor() {
+                this.video = null;
+                this.overlay = null;
+                this.ctx = null;
+                this.isDetecting = false;
+                this.capturedFaceImage = null;
+                this.currentTab = 'registration';
+                this.recognitionInterval = null;
+                this.pendingAttendance = null;
+                this.countdownTimeout = null;
+                
+                this.initializeEventListeners();
+                this.initializeTabs();
+                this.startClock();
+                this.loadTodaysAttendance();
+            }
+
+            initializeEventListeners() {
+                // Tab switching
+                document.querySelectorAll('.tab').forEach(tab => {
+                    tab.addEventListener('click', (e) => this.switchTab(e.target.dataset.tab));
+                });
+
+                // Registration events
+                document.getElementById('startCamera').addEventListener('click', () => this.startCamera('registration'));
+                document.getElementById('captureFace').addEventListener('click', () => this.captureFace());
+                document.getElementById('registerEmployee').addEventListener('click', () => this.registerEmployee());
+
+                // Attendance events
+                document.getElementById('startAttendanceCamera').addEventListener('click', () => this.startCamera('attendance'));
+                // Remove manual mark attendance button since it's now automatic
+            }
+
+            initializeTabs() {
+                this.switchTab('registration');
+            }
+
+            switchTab(tabName) {
+                // Update tab buttons
+                document.querySelectorAll('.tab').forEach(tab => {
+                    tab.classList.remove('active');
+                });
+                document.querySelector(`[data-tab="${tabName}"]`).classList.add('active');
+
+                // Update tab content
+                document.querySelectorAll('.tab-content').forEach(content => {
+                    content.classList.remove('active');
+                });
+                document.getElementById(tabName).classList.add('active');
+
+                this.currentTab = tabName;
+                this.stopAllCameras();
+            }
+
+            async startCamera(mode) {
+                try {
+                    const constraints = {
+                        video: {
+                            width: { ideal: 640 },
+                            height: { ideal: 480 },
+                            facingMode: 'user',
+                            frameRate: { ideal: 30 }
+                        }
+                    };
+
+                    const stream = await navigator.mediaDevices.getUserMedia(constraints);
+                    
+                    if (mode === 'registration') {
+                        this.video = document.getElementById('video');
+                        this.overlay = document.getElementById('detectionOverlay');
+                        this.ctx = this.overlay.getContext('2d');
+                        
+                        this.video.srcObject = stream;
+                        this.video.onloadedmetadata = () => {
+                            this.overlay.width = this.video.videoWidth;
+                            this.overlay.height = this.video.videoHeight;
+                            document.getElementById('captureFace').disabled = false;
+                            this.showStatus('Camera started! Position your face in the frame.', 'info', 'statusMessage');
+                        };
+                    } else {
+                        this.attendanceVideo = document.getElementById('attendanceVideo');
+                        this.attendanceOverlay = document.getElementById('attendanceOverlay');
+                        this.attendanceCtx = this.attendanceOverlay.getContext('2d');
+                        
+                        this.attendanceVideo.srcObject = stream;
+                        this.attendanceVideo.onloadedmetadata = () => {
+                            this.attendanceOverlay.width = this.attendanceVideo.videoWidth;
+                            this.attendanceOverlay.height = this.attendanceVideo.videoHeight;
+                            this.showStatus('Camera started! Auto-detection active - attendance will be marked automatically when you are recognized.', 'info', 'attendanceStatus');
+                            this.startContinuousRecognition();
+                        };
+                    }
+                    
+                    this.log(`${mode} camera initialized successfully`);
+                } catch (error) {
+                    this.showStatus('Error accessing camera: ' + error.message, 'error', 
+                        mode === 'registration' ? 'statusMessage' : 'attendanceStatus');
+                    this.log('Camera error: ' + error.message);
+                }
+            }
+
+            stopAllCameras() {
+                [document.getElementById('video'), document.getElementById('attendanceVideo')].forEach(video => {
+                    if (video && video.srcObject) {
+                        video.srcObject.getTracks().forEach(track => track.stop());
+                        video.srcObject = null;
+                    }
+                });
+
+                if (this.recognitionInterval) {
+                    clearInterval(this.recognitionInterval);
+                    this.recognitionInterval = null;
+                }
+
+                if (this.countdownTimeout) {
+                    clearTimeout(this.countdownTimeout);
+                    this.countdownTimeout = null;
+                }
+
+                this.pendingAttendance = null;
+            }
+
+            async captureFace() {
+                if (!this.video || !this.video.videoWidth) {
+                    this.showStatus('Camera not ready', 'error', 'statusMessage');
+                    return;
+                }
+
+                try {
+                    // Create canvas to capture current frame
+                    const canvas = document.createElement('canvas');
+                    canvas.width = this.video.videoWidth;
+                    canvas.height = this.video.videoHeight;
+                    const ctx = canvas.getContext('2d');
+                    ctx.drawImage(this.video, 0, 0);
+
+                    // Convert to base64
+                    this.capturedFaceImage = canvas.toDataURL('image/jpeg', 0.8);
+                    
+                    // Validate face quality (basic check)
+                    const quality = await this.validateFaceQuality(canvas);
+                    
+                    if (quality > 0.5) {
+                        document.getElementById('faceCaptured').textContent = 'Yes';
+                        document.getElementById('faceQuality').textContent = Math.round(quality * 100) + '%';
+                        document.getElementById('registerEmployee').disabled = false;
+                        this.showStatus('Face captured successfully! Quality: ' + Math.round(quality * 100) + '%', 'success', 'statusMessage');
+                        
+                        // Draw green border to show successful capture
+                        this.ctx.strokeStyle = '#00ff00';
+                        this.ctx.lineWidth = 5;
+                        this.ctx.strokeRect(0, 0, this.overlay.width, this.overlay.height);
+                    } else {
+                        this.showStatus('Face quality too low. Please ensure good lighting and face the camera directly.', 'error', 'statusMessage');
+                    }
+                } catch (error) {
+                    this.showStatus('Error capturing face: ' + error.message, 'error', 'statusMessage');
+                    this.log('Face capture error: ' + error.message);
+                }
+            }
+
+            async validateFaceQuality(canvas) {
+                // Basic quality validation
+                const ctx = canvas.getContext('2d');
+                const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+                const data = imageData.data;
+                
+                // Calculate brightness and contrast
+                let brightness = 0;
+                let contrast = 0;
+                
+                for (let i = 0; i < data.length; i += 4) {
+                    const gray = (data[i] + data[i + 1] + data[i + 2]) / 3;
+                    brightness += gray;
+                }
+                brightness /= (data.length / 4);
+                
+                for (let i = 0; i < data.length; i += 4) {
+                    const gray = (data[i] + data[i + 1] + data[i + 2]) / 3;
+                    contrast += Math.abs(gray - brightness);
+                }
+                contrast /= (data.length / 4);
+                
+                // Quality score based on brightness and contrast
+                let quality = 0;
+                if (brightness > 50 && brightness < 200) quality += 0.5;
+                if (contrast > 20) quality += 0.3;
+                
+                // Check for face-like features (simplified)
+                const skinPixels = this.countSkinPixels(data);
+                if (skinPixels > 1000) quality += 0.2;
+                
+                return Math.min(1.0, quality);
+            }
+
+            countSkinPixels(data) {
+                let count = 0;
+                for (let i = 0; i < data.length; i += 4) {
+                    const r = data[i];
+                    const g = data[i + 1];
+                    const b = data[i + 2];
+                    
+                    if (this.isSkinColor(r, g, b)) {
+                        count++;
+                    }
+                }
+                return count;
+            }
+
+            isSkinColor(r, g, b) {
+                return (r > 95 && g > 40 && b > 20) &&
+                       (Math.max(r, g, b) - Math.min(r, g, b) > 15) &&
+                       (Math.abs(r - g) > 15) && (r > g && r > b);
+            }
+
+            async registerEmployee() {
+                const employeeId = document.getElementById('employeeId').value.trim();
+                const fullName = document.getElementById('fullName').value.trim();
+                const department = document.getElementById('department').value;
+
+                if (!employeeId || !fullName || !department) {
+                    this.showStatus('Please fill in all employee details', 'error', 'statusMessage');
+                    return;
+                }
+
+                if (!this.capturedFaceImage) {
+                    this.showStatus('Please capture a face first', 'error', 'statusMessage');
+                    return;
+                }
+
+                try {
+                    const response = await fetch('api.php', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({
+                            action: 'register_employee',
+                            employee_id: employeeId,
+                            full_name: fullName,
+                            department: department,
+                            face_image: this.capturedFaceImage
+                        })
+                    });
+
+                    const result = await response.json();
+
+                    if (result.success) {
+                        this.showStatus('Employee registered successfully!', 'success', 'statusMessage');
+                        this.resetRegistrationForm();
+                        this.log(`Employee registered: ${fullName} (${employeeId})`);
+                    } else {
+                        this.showStatus('Registration failed: ' + result.error, 'error', 'statusMessage');
+                        this.log('Registration error: ' + result.error);
+                    }
+                } catch (error) {
+                    this.showStatus('Network error: ' + error.message, 'error', 'statusMessage');
+                    this.log('Network error: ' + error.message);
+                }
+            }
+
+            resetRegistrationForm() {
+                document.getElementById('employeeId').value = '';
+                document.getElementById('fullName').value = '';
+                document.getElementById('department').value = '';
+                document.getElementById('faceCaptured').textContent = 'No';
+                document.getElementById('faceQuality').textContent = '-';
+                document.getElementById('registerEmployee').disabled = true;
+                this.capturedFaceImage = null;
+                if (this.ctx) {
+                    this.ctx.clearRect(0, 0, this.overlay.width, this.overlay.height);
+                }
+            }
+
+            startContinuousRecognition() {
+                this.recognitionInterval = setInterval(async () => {
+                    if (this.attendanceVideo && this.attendanceVideo.videoWidth) {
+                        await this.recognizeAndMarkAttendance();
+                    }
+                }, 1500); // Check every 1.5 seconds for better responsiveness
+            }
+
+            async recognizeAndMarkAttendance() {
+                if (!this.attendanceVideo || !this.attendanceVideo.videoWidth) return;
+
+                try {
+                    const canvas = document.createElement('canvas');
+                    canvas.width = this.attendanceVideo.videoWidth;
+                    canvas.height = this.attendanceVideo.videoHeight;
+                    const ctx = canvas.getContext('2d');
+                    ctx.drawImage(this.attendanceVideo, 0, 0);
+
+                    const faceImage = canvas.toDataURL('image/jpeg', 0.8);
+
+                    // First recognize the face
+                    const recognitionResponse = await fetch('api.php', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({
+                            action: 'recognize_face',
+                            face_image: faceImage
+                        })
+                    });
+
+                    const recognitionResult = await recognitionResponse.json();
+
+                    if (recognitionResult.success && recognitionResult.confidence > 0.7) {
+                        // Face recognized with good confidence
+                        document.getElementById('recognizedEmployee').textContent = recognitionResult.name;
+                        document.getElementById('recognitionConfidence').textContent = Math.round(recognitionResult.confidence * 100) + '%';
+                        
+                        // Draw green border for recognized face
+                        this.attendanceCtx.clearRect(0, 0, this.attendanceOverlay.width, this.attendanceOverlay.height);
+                        this.attendanceCtx.strokeStyle = '#00ff00';
+                        this.attendanceCtx.lineWidth = 5;
+                        this.attendanceCtx.strokeRect(0, 0, this.attendanceOverlay.width, this.attendanceOverlay.height);
+                        
+                        // Show recognized text
+                        this.attendanceCtx.fillStyle = '#00ff00';
+                        this.attendanceCtx.font = 'bold 20px Arial';
+                        this.attendanceCtx.fillText('Recognized: ' + recognitionResult.name, 10, 30);
+                        
+                        // Automatically mark attendance after 2 seconds of stable recognition
+                        if (!this.pendingAttendance || this.pendingAttendance.employee_id !== recognitionResult.employee_id) {
+                            this.pendingAttendance = {
+                                employee_id: recognitionResult.employee_id,
+                                name: recognitionResult.name,
+                                confidence: recognitionResult.confidence,
+                                detectionTime: Date.now(),
+                                faceImage: faceImage
+                            };
+                            
+                            this.showStatus(`Employee detected: ${recognitionResult.name}. Stand still for 2 seconds...`, 'info', 'attendanceStatus');
+                            
+                            // Start countdown
+                            this.startAttendanceCountdown();
+                        }
+                    } else {
+                        // No face recognized or low confidence
+                        document.getElementById('recognizedEmployee').textContent = 'Unknown';
+                        document.getElementById('recognitionConfidence').textContent = '-';
+                        this.attendanceCtx.clearRect(0, 0, this.attendanceOverlay.width, this.attendanceOverlay.height);
+                        
+                        // Clear pending attendance
+                        this.pendingAttendance = null;
+                        if (this.countdownTimeout) {
+                            clearTimeout(this.countdownTimeout);
+                            this.countdownTimeout = null;
+                        }
+                    }
+                } catch (error) {
+                    this.log('Recognition error: ' + error.message);
+                }
+            }
+
+            startAttendanceCountdown() {
+                if (this.countdownTimeout) {
+                    clearTimeout(this.countdownTimeout);
+                }
+                
+                let countdown = 2;
+                const updateCountdown = () => {
+                    if (this.pendingAttendance && countdown > 0) {
+                        this.showStatus(`Marking attendance for ${this.pendingAttendance.name} in ${countdown} seconds...`, 'info', 'attendanceStatus');
+                        countdown--;
+                        this.countdownTimeout = setTimeout(updateCountdown, 1000);
+                    } else if (this.pendingAttendance && countdown === 0) {
+                        this.autoMarkAttendance();
+                    }
+                };
+                
+                updateCountdown();
+            }
+
+            async autoMarkAttendance() {
+                if (!this.pendingAttendance) return;
+
+                try {
+                    const response = await fetch('api.php', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({
+                            action: 'mark_attendance',
+                            face_image: this.pendingAttendance.faceImage
+                        })
+                    });
+
+                    const result = await response.json();
+
+                    if (result.success) {
+                        this.showStatus(`✓ Attendance marked automatically for ${result.employee.name}! Status: ${result.status}`, 'success', 'attendanceStatus');
+                        document.getElementById('attendanceStatusText').textContent = result.status;
+                        this.loadTodaysAttendance();
+                        this.log(`Auto-attendance marked: ${result.employee.name} - ${result.status}`);
+                        
+                        // Show success animation
+                        this.showAttendanceSuccess(result.employee.name, result.status);
+                        
+                        // Clear pending attendance
+                        this.pendingAttendance = null;
+                    } else {
+                        this.showStatus('Failed to mark attendance: ' + result.error, 'error', 'attendanceStatus');
+                        this.log('Auto-attendance error: ' + result.error);
+                        this.pendingAttendance = null;
+                    }
+                } catch (error) {
+                    this.showStatus('Network error during auto-attendance: ' + error.message, 'error', 'attendanceStatus');
+                    this.log('Auto-attendance network error: ' + error.message);
+                    this.pendingAttendance = null;
+                }
+            }
+
+            showAttendanceSuccess(employeeName, status) {
+                // Clear the canvas
+                this.attendanceCtx.clearRect(0, 0, this.attendanceOverlay.width, this.attendanceOverlay.height);
+                
+                // Draw success animation
+                this.attendanceCtx.fillStyle = '#28a745';
+                this.attendanceCtx.fillRect(0, 0, this.attendanceOverlay.width, this.attendanceOverlay.height);
+                
+                // Add success text
+                this.attendanceCtx.fillStyle = '#ffffff';
+                this.attendanceCtx.font = 'bold 24px Arial';
+                this.attendanceCtx.textAlign = 'center';
+                this.attendanceCtx.fillText('ATTENDANCE MARKED!', this.attendanceOverlay.width / 2, this.attendanceOverlay.height / 2 - 30);
+                this.attendanceCtx.font = 'bold 18px Arial';
+                this.attendanceCtx.fillText(employeeName, this.attendanceOverlay.width / 2, this.attendanceOverlay.height / 2);
+                this.attendanceCtx.font = '16px Arial';
+                this.attendanceCtx.fillText(`Status: ${status}`, this.attendanceOverlay.width / 2, this.attendanceOverlay.height / 2 + 30);
+                
+                // Clear after 3 seconds
+                setTimeout(() => {
+                    this.attendanceCtx.clearRect(0, 0, this.attendanceOverlay.width, this.attendanceOverlay.height);
+                    this.attendanceCtx.textAlign = 'left';
+                }, 3000);
+            }
+
+            async markAttendance() {
+                if (!this.attendanceVideo || !this.attendanceVideo.videoWidth) {
+                    this.showStatus('Camera not ready', 'error', 'attendanceStatus');
+                    return;
+                }
+
+                try {
+                    const canvas = document.createElement('canvas');
+                    canvas.width = this.attendanceVideo.videoWidth;
+                    canvas.height = this.attendanceVideo.videoHeight;
+                    const ctx = canvas.getContext('2d');
+                    ctx.drawImage(this.attendanceVideo, 0, 0);
+
+                    const faceImage = canvas.toDataURL('image/jpeg', 0.8);
+
+                    const response = await fetch('api.php', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({
+                            action: 'mark_attendance',
+                            face_image: faceImage
+                        })
+                    });
+
+                    const result = await response.json();
+
+                    if (result.success) {
+                        this.showStatus(`Attendance marked for ${result.employee.name}! Status: ${result.status}`, 'success', 'attendanceStatus');
+                        document.getElementById('attendanceStatusText').textContent = result.status;
+                        this.loadTodaysAttendance();
+                        this.log(`Attendance marked: ${result.employee.name} - ${result.status}`);
+                    } else {
+                        this.showStatus('Failed to mark attendance: ' + result.error, 'error', 'attendanceStatus');
+                        this.log('Attendance error: ' + result.error);
+                    }
+                } catch (error) {
+                    this.showStatus('Network error: ' + error.message, 'error', 'attendanceStatus');
+                    this.log('Network error: ' + error.message);
+                }
+            }
+
+            async loadTodaysAttendance() {
+                try {
+                    const response = await fetch(`api.php?action=get_attendance&date=${new Date().toISOString().split('T')[0]}`);
+                    const result = await response.json();
+
+                    const logContainer = document.getElementById('attendanceLogEntries');
+                    
+                    if (result.success && result.data.length > 0) {
+                        logContainer.innerHTML = result.data.map(entry => `
+                            <div class="attendance-entry">
+                                <span><strong>${entry.full_name}</strong> (${entry.employee_id})</span>
+                                <span>${entry.check_in_time} - ${entry.status}</span>
+                            </div>
+                        `).join('');
+                    } else {
+                        logContainer.innerHTML = '<div class="attendance-entry">No attendance records for today</div>';
+                    }
+                } catch (error) {
+                    this.log('Failed to load attendance log: ' + error.message);
+                }
+            }
+
+            startClock() {
+                const updateClock = () => {
+                    const now = new Date();
+                    const timeString = now.toLocaleTimeString();
+                    document.getElementById('currentTime').textContent = timeString;
+                };
+                
+                updateClock();
+                setInterval(updateClock, 1000);
+            }
+
+            showStatus(message, type, elementId) {
+                const statusDiv = document.getElementById(elementId);
+                statusDiv.className = `status-message status-${type}`;
+                statusDiv.textContent = message;
+                
+                if (type === 'success') {
+                    setTimeout(() => {
+                        statusDiv.textContent = '';
+                        statusDiv.className = '';
+                    }, 5000);
+                }
+            }
+
+            log(message) {
+                const debugLog = document.getElementById('debugLog');
+                const timestamp = new Date().toLocaleTimeString();
+                debugLog.innerHTML += `<br>[${timestamp}] ${message}`;
+                debugLog.scrollTop = debugLog.scrollHeight;
+            }
+        }
+
+        // Initialize when page loads
+        document.addEventListener('DOMContentLoaded', () => {
+            new FaceRegistrationAttendanceSystem();
+        });
+    </script>
+</body>
+</html>
